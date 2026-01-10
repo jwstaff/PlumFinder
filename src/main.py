@@ -22,7 +22,7 @@ import config
 from src.scrapers import CraigslistScraper, FacebookMarketplaceScraper
 from src.analyzer import ColorAnalyzer
 from src.database import ItemTracker
-from src.email import EmailSender
+from src.mailer import EmailSender
 
 
 def calculate_distance(location_str: str) -> float:

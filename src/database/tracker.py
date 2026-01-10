@@ -188,7 +188,10 @@ class ItemTracker:
     def close(self):
         """Close the database connection."""
         if self.connection:
-            self.connection.close()
+            try:
+                self.connection.close()
+            except AttributeError:
+                pass  # libsql connections don't have close()
 
 
 if __name__ == "__main__":

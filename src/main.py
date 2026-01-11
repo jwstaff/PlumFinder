@@ -19,7 +19,15 @@ from geopy.distance import geodesic
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import config
-from src.scrapers import CraigslistScraper, FacebookMarketplaceScraper
+from src.scrapers import (
+    CraigslistScraper,
+    FacebookMarketplaceScraper,
+    OfferUpScraper,
+    MercariScraper,
+    EbayScraper,
+    EtsyScraper,
+    PoshmarkScraper,
+)
 from src.analyzer import ColorAnalyzer
 from src.database import ItemTracker
 from src.mailer import EmailSender
@@ -120,22 +128,30 @@ def run_pipeline():
     print("=" * 60)
 
     # Initialize components
-    craigslist = CraigslistScraper()
-    facebook = FacebookMarketplaceScraper()
+    scrapers = {
+        "craigslist": CraigslistScraper(),
+        "facebook": FacebookMarketplaceScraper(),
+        "offerup": OfferUpScraper(),
+        "mercari": MercariScraper(),
+        "ebay": EbayScraper(),
+        "etsy": EtsyScraper(),
+        "poshmark": PoshmarkScraper(),
+    }
     color_analyzer = ColorAnalyzer()
     tracker = ItemTracker()
     email_sender = EmailSender()
 
     try:
-        # Step 1: Scrape listings
-        print("\n[1/6] Scraping listings...")
+        # Step 1: Scrape listings from all sources
+        print("\n[1/6] Scraping listings from all sources...")
         all_items = []
 
-        cl_items = craigslist.search_all_terms()
-        all_items.extend(cl_items)
-
-        fb_items = facebook.search_all_terms()
-        all_items.extend(fb_items)
+        for name, scraper in scrapers.items():
+            try:
+                items = scraper.search_all_terms()
+                all_items.extend(items)
+            except Exception as e:
+                print(f"Error scraping {name}: {e}")
 
         print(f"Total items found: {len(all_items)}")
 
@@ -188,8 +204,8 @@ def run_pipeline():
         # Fetch additional details for top items (images, etc.)
         print("  Fetching listing details...")
         for item in top_items:
-            if item.source == "craigslist":
-                craigslist.get_listing_details(item)
+            if item.source == "craigslist" and hasattr(scrapers.get("craigslist"), "get_listing_details"):
+                scrapers["craigslist"].get_listing_details(item)
 
         # Step 6: Mark items as seen and send email
         print("\n[6/6] Sending email...")
@@ -215,8 +231,11 @@ def run_pipeline():
 
     finally:
         # Cleanup
-        craigslist.close()
-        facebook.close()
+        for scraper in scrapers.values():
+            try:
+                scraper.close()
+            except:
+                pass
         color_analyzer.close()
         tracker.close()
 

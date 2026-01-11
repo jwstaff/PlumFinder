@@ -242,8 +242,25 @@ def test_mode():
         color_analyzer.close()
 
 
+def reset_database():
+    """Reset the database to start fresh."""
+    print("Resetting database...")
+    tracker = ItemTracker()
+    cursor = tracker.connection.cursor()
+    cursor.execute("DELETE FROM seen_items")
+    cursor.execute("DELETE FROM email_history")
+    tracker.connection.commit()
+    print("Database reset complete")
+    tracker.close()
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--test":
         test_mode()
+    elif len(sys.argv) > 1 and sys.argv[1] == "--reset":
+        reset_database()
+    elif os.getenv("RESET_DB") == "true":
+        reset_database()
+        run_pipeline()
     else:
         run_pipeline()

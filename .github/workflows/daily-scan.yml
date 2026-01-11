@@ -7,6 +7,12 @@ on:
 
   # Allow manual triggering
   workflow_dispatch:
+    inputs:
+      reset_db:
+        description: 'Reset database before running'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
   find-plum-items:
@@ -34,6 +40,7 @@ jobs:
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           FB_SESSION_COOKIE: ${{ secrets.FB_SESSION_COOKIE }}
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          RESET_DB: ${{ inputs.reset_db }}
         run: |
           python src/main.py
 

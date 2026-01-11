@@ -1,3 +1,10 @@
+"""
+Craigslist Scraper
+
+Scrapes Craigslist for items matching search terms.
+Includes robots.txt compliance, caching, and exponential backoff.
+"""
+
 import httpx
 import time
 import random
@@ -11,6 +18,11 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 import config
+from src.scrapers.utils import (
+    get_robots_checker,
+    get_response_cache,
+    retry_on_failure,
+)
 
 
 @dataclass
@@ -48,11 +60,45 @@ class CraigslistScraper:
     SEARCH_URL = f"{BASE_URL}/search/sss"
 
     def __init__(self):
+        self.user_agent = random.choice(config.USER_AGENTS)
         self.client = httpx.Client(
-            headers={"User-Agent": random.choice(config.USER_AGENTS)},
+            headers={"User-Agent": self.user_agent},
             timeout=30.0,
             follow_redirects=True,
         )
+        self.robots_checker = get_robots_checker(self.user_agent)
+        self.cache = get_response_cache(ttl=300)  # 5-minute cache
+
+        # Check robots.txt compliance on init
+        self._check_robots_compliance()
+
+    def _check_robots_compliance(self):
+        """Check if we're allowed to scrape according to robots.txt."""
+        if not self.robots_checker.can_fetch(self.SEARCH_URL, self.client):
+            print("Warning: Craigslist robots.txt may disallow this access")
+
+        # Check for crawl delay
+        delay = self.robots_checker.get_crawl_delay(self.SEARCH_URL)
+        if delay:
+            print(f"Craigslist requests crawl delay of {delay}s")
+
+    def _fetch_with_retry(self, url: str, params: Optional[dict] = None) -> Optional[httpx.Response]:
+        """Fetch URL with exponential backoff retry."""
+        def do_fetch():
+            response = self.client.get(url, params=params)
+            response.raise_for_status()
+            return response
+
+        try:
+            return retry_on_failure(
+                do_fetch,
+                max_retries=3,
+                base_delay=config.REQUEST_DELAY,
+                max_delay=30.0,
+            )
+        except Exception as e:
+            print(f"Failed to fetch {url} after retries: {e}")
+            return None
 
     def search(self, query: str, postal: str = config.TARGET_ZIP, miles: int = config.MAX_DISTANCE_MILES) -> list[ListingItem]:
         """Search Craigslist for items matching the query."""
@@ -63,12 +109,24 @@ class CraigslistScraper:
             "postal": postal,
             "search_distance": miles,
             "sort": "date",
-            "purveyor": "owner",  # Filter to owner listings, skip dealers
+            "purveyor": "owner",
         }
 
+        # Check cache first
+        cache_key_params = {**params, "url": self.SEARCH_URL}
+        cached = self.cache.get(self.SEARCH_URL, cache_key_params)
+        if cached:
+            return cached
+
+        # Check robots.txt compliance
+        if not self.robots_checker.can_fetch(self.SEARCH_URL, self.client):
+            print(f"Skipping {self.SEARCH_URL} - disallowed by robots.txt")
+            return items
+
         try:
-            response = self.client.get(self.SEARCH_URL, params=params)
-            response.raise_for_status()
+            response = self._fetch_with_retry(self.SEARCH_URL, params)
+            if not response:
+                return items
 
             soup = BeautifulSoup(response.text, "lxml")
             listings = soup.select("li.cl-static-search-result, div.cl-search-result")
@@ -77,6 +135,9 @@ class CraigslistScraper:
                 item = self._parse_listing(listing)
                 if item:
                     items.append(item)
+
+            # Cache the results
+            self.cache.set(self.SEARCH_URL, items, cache_key_params)
 
             time.sleep(config.REQUEST_DELAY)
 
@@ -88,7 +149,6 @@ class CraigslistScraper:
     def _parse_listing(self, listing) -> Optional[ListingItem]:
         """Parse a single Craigslist listing."""
         try:
-            # Get the link and title
             link = listing.select_one("a")
             if not link:
                 return None
@@ -99,11 +159,9 @@ class CraigslistScraper:
 
             title = link.get_text(strip=True)
 
-            # Extract ID from URL
             match = re.search(r"/(\d+)\.html", url)
             item_id = match.group(1) if match else url
 
-            # Get price
             price_elem = listing.select_one(".priceinfo, .price")
             price = None
             if price_elem:
@@ -112,11 +170,9 @@ class CraigslistScraper:
                 if price_match:
                     price = float(price_match.group(1).replace(",", ""))
 
-            # Get location
             location_elem = listing.select_one(".meta, .location")
             location = location_elem.get_text(strip=True) if location_elem else None
 
-            # Get image (if available in search results)
             image_urls = []
             img = listing.select_one("img")
             if img:
@@ -124,7 +180,6 @@ class CraigslistScraper:
                 if src and "craigslist" in src:
                     image_urls.append(src)
 
-            # Check for shipping keywords in title
             shippable = any(word in title.lower() for word in ["ship", "shipping", "mail", "deliver"])
 
             return ListingItem(
@@ -134,7 +189,7 @@ class CraigslistScraper:
                 url=url,
                 image_urls=image_urls,
                 location=location,
-                posted_date=datetime.now(),  # Will be updated when fetching details
+                posted_date=datetime.now(),
                 source="craigslist",
                 shippable=shippable,
             )
@@ -145,19 +200,22 @@ class CraigslistScraper:
 
     def get_listing_details(self, item: ListingItem) -> ListingItem:
         """Fetch full details for a listing including all images."""
+        # Check robots.txt for detail page
+        if not self.robots_checker.can_fetch(item.url, self.client):
+            return item
+
         try:
-            response = self.client.get(item.url)
-            response.raise_for_status()
+            response = self._fetch_with_retry(item.url)
+            if not response:
+                return item
 
             soup = BeautifulSoup(response.text, "lxml")
 
-            # Get all images
             gallery = soup.select("div.gallery img, div.swipe img, a.thumb img")
             image_urls = []
             for img in gallery:
                 src = img.get("src", "") or img.get("data-src", "")
                 if src and src not in image_urls:
-                    # Get full-size image URL
                     src = src.replace("50x50c", "600x450")
                     src = src.replace("300x300", "600x450")
                     image_urls.append(src)
@@ -165,14 +223,12 @@ class CraigslistScraper:
             if image_urls:
                 item.image_urls = image_urls
 
-            # Get posted date
             time_elem = soup.select_one("time.date")
             if time_elem:
                 datetime_str = time_elem.get("datetime")
                 if datetime_str:
                     item.posted_date = datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
 
-            # Check description for shipping info
             body = soup.select_one("section#postingbody")
             if body:
                 body_text = body.get_text().lower()
@@ -208,7 +264,6 @@ class CraigslistScraper:
 
 
 if __name__ == "__main__":
-    # Test the scraper
     scraper = CraigslistScraper()
     try:
         items = scraper.search("purple pillow")

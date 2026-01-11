@@ -21,7 +21,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 from src.scrapers import (
     CraigslistScraper,
-    FacebookMarketplaceScraper,
     OfferUpScraper,
     MercariScraper,
     EbayScraper,
@@ -130,7 +129,6 @@ def run_pipeline():
     # Initialize components
     scrapers = {
         "craigslist": CraigslistScraper(),
-        "facebook": FacebookMarketplaceScraper(),
         "offerup": OfferUpScraper(),
         "mercari": MercariScraper(),
         "ebay": EbayScraper(),

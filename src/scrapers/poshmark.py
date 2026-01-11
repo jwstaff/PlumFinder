@@ -3,6 +3,7 @@ Poshmark Home Scraper
 
 Scrapes Poshmark's Home category for items matching search terms.
 Poshmark Home includes pillows, throws, decor, and more.
+Includes robots.txt compliance, caching, and exponential backoff.
 """
 
 import httpx
@@ -19,6 +20,11 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 import config
 from src.scrapers.craigslist import ListingItem
+from src.scrapers.utils import (
+    get_robots_checker,
+    get_response_cache,
+    retry_on_failure,
+)
 
 
 class PoshmarkScraper:
@@ -26,33 +32,66 @@ class PoshmarkScraper:
     SEARCH_URL = f"{BASE_URL}/search"
 
     def __init__(self):
+        self.user_agent = random.choice(config.USER_AGENTS)
         self.client = httpx.Client(
             headers={
-                "User-Agent": random.choice(config.USER_AGENTS),
+                "User-Agent": self.user_agent,
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.5",
             },
             timeout=30.0,
             follow_redirects=True,
         )
+        self.robots_checker = get_robots_checker(self.user_agent)
+        self.cache = get_response_cache(ttl=300)
+
+    def _fetch_with_retry(self, url: str, params: Optional[dict] = None) -> Optional[httpx.Response]:
+        """Fetch URL with exponential backoff retry."""
+        def do_fetch():
+            response = self.client.get(url, params=params)
+            response.raise_for_status()
+            return response
+
+        try:
+            return retry_on_failure(
+                do_fetch,
+                max_retries=3,
+                base_delay=config.REQUEST_DELAY,
+                max_delay=30.0,
+            )
+        except Exception as e:
+            print(f"Failed to fetch {url} after retries: {e}")
+            return None
 
     def search(self, query: str) -> list[ListingItem]:
         """Search Poshmark Home for items matching the query."""
+        # Check cache first
+        cache_key = f"poshmark_{query}"
+        cached = self.cache.get(cache_key)
+        if cached:
+            return cached
+
+        # Check robots.txt
+        if not self.robots_checker.can_fetch(self.SEARCH_URL, self.client):
+            print("Poshmark search disallowed by robots.txt")
+            return []
+
         items = []
 
-        # Search in the Home category
         params = {
             "query": query,
             "department": "Home",
-            "sort_by": "added_desc",  # Newest first
+            "sort_by": "added_desc",
             "availability": "available",
         }
 
         try:
-            response = self.client.get(self.SEARCH_URL, params=params)
-            response.raise_for_status()
+            response = self._fetch_with_retry(self.SEARCH_URL, params=params)
+            if response:
+                items = self._parse_search_results(response.text)
+                # Cache results
+                self.cache.set(cache_key, items)
 
-            items = self._parse_search_results(response.text)
             time.sleep(config.REQUEST_DELAY)
 
         except Exception as e:
@@ -70,7 +109,6 @@ class PoshmarkScraper:
         for script in scripts:
             if script.string and "__NEXT_DATA__" in str(script):
                 try:
-                    # Extract JSON from Next.js data
                     json_match = re.search(r'__NEXT_DATA__\s*=\s*({.+?})\s*;?\s*</script>', str(script), re.DOTALL)
                     if json_match:
                         data = json.loads(json_match.group(1))
@@ -97,7 +135,6 @@ class PoshmarkScraper:
             items = []
 
         if isinstance(data, dict):
-            # Look for listing patterns
             if "id" in data and "title" in data and "price_amount" in data:
                 try:
                     item = ListingItem(
@@ -127,7 +164,6 @@ class PoshmarkScraper:
     def _parse_listing(self, listing) -> Optional[ListingItem]:
         """Parse a single Poshmark listing element."""
         try:
-            # Get the link
             link = listing if listing.name == 'a' else listing.select_one('a[href*="/listing/"]')
             if not link:
                 return None
@@ -136,20 +172,16 @@ class PoshmarkScraper:
             if not url.startswith("http"):
                 url = self.BASE_URL + url
 
-            # Extract ID from URL (usually at the end)
             match = re.search(r"-([a-f0-9]+)(?:\?|$)", url)
             item_id = match.group(1) if match else None
 
             if not item_id:
-                # Try another pattern
                 match = re.search(r"/listing/[^/]+-([a-f0-9]+)", url)
                 item_id = match.group(1) if match else url[-12:]
 
-            # Get title
             title_elem = listing.select_one('[class*="title"], .tile__title, h4, span[class*="Title"]')
             title = title_elem.get_text(strip=True) if title_elem else ""
 
-            # Get price
             price = None
             price_elem = listing.select_one('[class*="price"], .tile__price, span[class*="Price"]')
             if price_elem:
@@ -158,7 +190,6 @@ class PoshmarkScraper:
                 if price_match:
                     price = float(price_match.group(1).replace(",", ""))
 
-            # Get image
             image_urls = []
             img = listing.select_one("img")
             if img:
@@ -178,7 +209,7 @@ class PoshmarkScraper:
                 location=None,
                 posted_date=datetime.now(),
                 source="poshmark",
-                shippable=True,  # Poshmark is shipping-only
+                shippable=True,
             )
 
         except Exception as e:

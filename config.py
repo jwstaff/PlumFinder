@@ -39,7 +39,10 @@ SENDER_EMAIL = os.getenv("SENDER_EMAIL", "plumfinder@resend.dev")
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 TURSO_DATABASE_URL = os.getenv("TURSO_DATABASE_URL")
 TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN")
-FB_SESSION_COOKIE = os.getenv("FB_SESSION_COOKIE")
+
+# Official API keys for marketplace sites
+EBAY_APP_ID = os.getenv("EBAY_APP_ID")  # eBay Browse API
+ETSY_API_KEY = os.getenv("ETSY_API_KEY")  # Etsy Open API v3
 
 # Scraping settings
 REQUEST_DELAY = 2  # seconds between requests

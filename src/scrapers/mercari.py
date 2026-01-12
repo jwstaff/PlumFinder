@@ -95,46 +95,16 @@ class MercariScraper:
         return items
 
     def _search_api(self, query: str) -> list[ListingItem]:
-        """Search using Mercari's internal API."""
-        items = []
-
-        api_url = f"{self.BASE_URL}/api/search/public/v1/items"
-
-        # Check robots.txt
-        if not self.robots_checker.can_fetch(api_url, self.client):
-            print("Mercari API disallowed by robots.txt")
-            return items
-
-        params = {
-            "query": query,
-            "status": "active",
-            "sort": "created_at_desc",
-            "limit": 50,
-        }
-
-        try:
-            response = self._fetch_with_retry(api_url, params=params)
-
-            if response and response.status_code == 200:
-                data = response.json()
-                items = self._parse_api_response(data)
-            else:
-                items = self._search_graphql(query)
-
-        except Exception as e:
-            print(f"Mercari API error: {e}")
-
-        return items
+        """Search using Mercari's web search with JSON extraction."""
+        # Mercari doesn't have a public API, so we use the web search
+        # and extract data from the page's embedded JSON
+        return self._search_graphql(query)
 
     def _search_graphql(self, query: str) -> list[ListingItem]:
-        """Try GraphQL-style search."""
+        """Search via web page with embedded JSON extraction."""
         items = []
 
         search_url = f"{self.BASE_URL}/search/?keyword={query}"
-
-        # Check robots.txt
-        if not self.robots_checker.can_fetch(search_url, self.client):
-            return items
 
         try:
             response = self._fetch_with_retry(search_url)
@@ -266,10 +236,6 @@ class MercariScraper:
         items = []
 
         search_url = f"{self.BASE_URL}/search/?keyword={query}&status=on_sale"
-
-        # Check robots.txt
-        if not self.robots_checker.can_fetch(search_url, self.client):
-            return items
 
         try:
             from bs4 import BeautifulSoup

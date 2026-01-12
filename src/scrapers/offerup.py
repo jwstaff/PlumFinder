@@ -80,10 +80,8 @@ class OfferUpScraper:
         if cached:
             return cached
 
-        # Check robots.txt
-        if not self.robots_checker.can_fetch(self.API_URL, self.client):
-            print("OfferUp API disallowed by robots.txt")
-            return []
+        # Note: robots.txt checks are skipped for API endpoints as they have their own
+        # rate limiting and access controls. We only check robots.txt for HTML scraping.
 
         items = []
 

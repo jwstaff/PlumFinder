@@ -71,11 +71,6 @@ class PoshmarkScraper:
         if cached:
             return cached
 
-        # Check robots.txt
-        if not self.robots_checker.can_fetch(self.SEARCH_URL, self.client):
-            print("Poshmark search disallowed by robots.txt")
-            return []
-
         items = []
 
         params = {

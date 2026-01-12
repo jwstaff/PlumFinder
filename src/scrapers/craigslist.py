@@ -227,7 +227,13 @@ class CraigslistScraper:
             if time_elem:
                 datetime_str = time_elem.get("datetime")
                 if datetime_str:
-                    item.posted_date = datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
+                    try:
+                        # Handle timezone offset format like -0800 (Python 3.9 compatibility)
+                        if datetime_str[-5:-4] in ['+', '-'] and ':' not in datetime_str[-5:]:
+                            datetime_str = datetime_str[:-2] + ':' + datetime_str[-2:]
+                        item.posted_date = datetime.fromisoformat(datetime_str.replace("Z", "+00:00"))
+                    except ValueError:
+                        pass  # Keep existing posted_date if parsing fails
 
             body = soup.select_one("section#postingbody")
             if body:

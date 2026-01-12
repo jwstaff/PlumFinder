@@ -1,9 +1,6 @@
 from .craigslist import CraigslistScraper, ListingItem
-from .offerup import OfferUpScraper
-from .mercari import MercariScraper
 from .ebay import EbayScraper
 from .etsy import EtsyScraper
-from .poshmark import PoshmarkScraper
 from .utils import (
     RobotsChecker,
     ResponseCache,
@@ -15,11 +12,8 @@ from .utils import (
 
 __all__ = [
     "CraigslistScraper",
-    "OfferUpScraper",
-    "MercariScraper",
     "EbayScraper",
     "EtsyScraper",
-    "PoshmarkScraper",
     "ListingItem",
     "RobotsChecker",
     "ResponseCache",

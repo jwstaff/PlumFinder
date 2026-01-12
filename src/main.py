@@ -21,11 +21,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 from src.scrapers import (
     CraigslistScraper,
-    OfferUpScraper,
-    MercariScraper,
     EbayScraper,
     EtsyScraper,
-    PoshmarkScraper,
 )
 from src.analyzer import ColorAnalyzer
 from src.database import ItemTracker
@@ -129,11 +126,8 @@ def run_pipeline():
     # Initialize components
     scrapers = {
         "craigslist": CraigslistScraper(),
-        "offerup": OfferUpScraper(),
-        "mercari": MercariScraper(),
         "ebay": EbayScraper(),
         "etsy": EtsyScraper(),
-        "poshmark": PoshmarkScraper(),
     }
     color_analyzer = ColorAnalyzer()
     tracker = ItemTracker()

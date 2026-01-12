@@ -35,11 +35,19 @@ jobs:
 
       - name: Run PlumFinder
         env:
+          # Required for email notifications
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+
+          # Database (Turso cloud or falls back to local SQLite)
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-          FB_SESSION_COOKIE: ${{ secrets.FB_SESSION_COOKIE }}
-          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+
+          # Optional: Official API keys for better reliability
+          EBAY_APP_ID: ${{ secrets.EBAY_APP_ID }}
+          ETSY_API_KEY: ${{ secrets.ETSY_API_KEY }}
+
+          # Reset database option
           RESET_DB: ${{ inputs.reset_db }}
         run: |
           python src/main.py

@@ -70,7 +70,6 @@ COLOR_KEYWORDS = ["plum", "purple", "violet", "eggplant", "aubergine", "mauve", 
 
 # Email settings
 RECIPIENT_EMAILS = [
-    "y2z18tu5h@mozmail.com",
     "aditi.b84@gmail.com",
 ]
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "plumfinder@resend.dev")

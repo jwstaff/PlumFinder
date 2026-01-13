@@ -23,7 +23,7 @@ class EmailSender:
             print("Email sender disabled: No RESEND_API_KEY configured")
             self.enabled = False
 
-    def send_digest(self, items: list, recipient: str = config.RECIPIENT_EMAIL) -> bool:
+    def send_digest(self, items: list, recipients: list = None) -> bool:
         """Send the daily digest email with found items."""
         if not self.enabled:
             print("Email sending is disabled")
@@ -33,13 +33,16 @@ class EmailSender:
             print("No items to send")
             return False
 
+        if recipients is None:
+            recipients = config.RECIPIENT_EMAILS
+
         html_content = self._generate_html(items)
         plain_content = self._generate_plain_text(items)
 
         try:
             response = resend.Emails.send({
                 "from": config.SENDER_EMAIL,
-                "to": [recipient],
+                "to": recipients,
                 "subject": f"Plum Finds - {len(items)} New Items ({datetime.now().strftime('%B %d')})",
                 "html": html_content,
                 "text": plain_content,
@@ -161,16 +164,19 @@ class EmailSender:
 
         return "\n".join(lines)
 
-    def send_test_email(self, recipient: str = config.RECIPIENT_EMAIL) -> bool:
+    def send_test_email(self, recipients: list = None) -> bool:
         """Send a test email to verify configuration."""
         if not self.enabled:
             print("Email sending is disabled")
             return False
 
+        if recipients is None:
+            recipients = config.RECIPIENT_EMAILS
+
         try:
             response = resend.Emails.send({
                 "from": config.SENDER_EMAIL,
-                "to": [recipient],
+                "to": recipients,
                 "subject": "PlumFinder Test Email",
                 "html": """
                     <div style="font-family: sans-serif; padding: 20px;">

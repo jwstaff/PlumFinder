@@ -233,7 +233,7 @@ def run_pipeline():
 
         if success:
             tracker.mark_sent([item.id for item in top_items])
-            tracker.record_email_sent(len(top_items), config.RECIPIENT_EMAIL)
+            tracker.record_email_sent(len(top_items), ", ".join(config.RECIPIENT_EMAILS))
             print(f"Successfully sent email with {len(top_items)} items!")
         else:
             print("Failed to send email")

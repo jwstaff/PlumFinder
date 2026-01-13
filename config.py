@@ -69,7 +69,10 @@ PLUM_VAL_MIN = 0.15
 COLOR_KEYWORDS = ["plum", "purple", "violet", "eggplant", "aubergine", "mauve", "lavender", "grape"]
 
 # Email settings
-RECIPIENT_EMAIL = "y2z18tu5h@mozmail.com"
+RECIPIENT_EMAILS = [
+    "y2z18tu5h@mozmail.com",
+    "aditi.b84@gmail.com",
+]
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "plumfinder@resend.dev")
 
 # API Keys (from environment)

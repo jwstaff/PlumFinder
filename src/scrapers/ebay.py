@@ -259,7 +259,8 @@ class EbayScraper:
         items = []
         soup = BeautifulSoup(html, "lxml")
 
-        listings = soup.select('.s-item, [data-viewport]')
+        # eBay uses .srp-results li for listings
+        listings = soup.select('.srp-results li, .s-item, [data-view]')
 
         for listing in listings:
             try:
@@ -274,12 +275,13 @@ class EbayScraper:
     def _parse_html_listing(self, listing) -> Optional[ListingItem]:
         """Parse a single eBay listing from HTML."""
         try:
-            link = listing.select_one('a.s-item__link, a[href*="/itm/"]')
+            # Find the item link
+            link = listing.select_one('a[href*="/itm/"]')
             if not link:
                 return None
 
             url = link.get("href", "")
-            if not url or "pulsar" in url:
+            if not url or "pulsar" in url or "ebay.com/itm/" not in url:
                 return None
 
             match = re.search(r"/itm/(\d+)", url)
@@ -287,31 +289,48 @@ class EbayScraper:
             if not item_id:
                 return None
 
-            title_elem = listing.select_one('.s-item__title, [role="heading"]')
+            # Get title from link or heading
+            title_elem = listing.select_one('[role="heading"], .s-item__title, h3')
             title = title_elem.get_text(strip=True) if title_elem else ""
+
+            # Fallback: get title from link text or aria-label
+            if not title:
+                title = link.get("aria-label", "") or link.get_text(strip=True)
 
             if not title or "shop on ebay" in title.lower():
                 return None
 
+            # Get price
             price = None
-            price_elem = listing.select_one('.s-item__price')
+            price_elem = listing.select_one('[class*="price"], .s-item__price')
             if price_elem:
                 price_text = price_elem.get_text(strip=True)
                 price_match = re.search(r"\$?([\d,]+\.?\d*)", price_text)
                 if price_match:
                     price = float(price_match.group(1).replace(",", ""))
 
+            # Get image - look for ebayimg.com URLs
             image_urls = []
-            img = listing.select_one('.s-item__image-wrapper img, img.s-item__image-img')
+            img = listing.select_one('img[src*="ebayimg"], img[data-src*="ebayimg"]')
             if img:
                 src = img.get("src", "") or img.get("data-src", "")
-                if src and src.startswith("http") and "gif" not in src:
+                if src and src.startswith("http") and "gif" not in src.lower():
+                    # Convert to larger image size
+                    src = re.sub(r'/s-l\d+\.', '/s-l500.', src)
                     image_urls.append(src)
 
-            location_elem = listing.select_one('.s-item__location, .s-item__itemLocation')
+            # Fallback: any img with http src
+            if not image_urls:
+                img = listing.select_one('img[src^="http"]')
+                if img:
+                    src = img.get("src", "")
+                    if "gif" not in src.lower() and "svg" not in src.lower():
+                        image_urls.append(src)
+
+            location_elem = listing.select_one('[class*="location"], .s-item__location')
             location = location_elem.get_text(strip=True) if location_elem else None
 
-            shipping_elem = listing.select_one('.s-item__shipping, .s-item__freeXDays')
+            shipping_elem = listing.select_one('[class*="shipping"], .s-item__shipping')
             shipping_text = shipping_elem.get_text(strip=True).lower() if shipping_elem else ""
             shippable = "shipping" in shipping_text or "free" in shipping_text
 

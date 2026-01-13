@@ -29,6 +29,20 @@ from src.database import ItemTracker
 from src.mailer import EmailSender
 
 
+def should_exclude_item(item) -> bool:
+    """
+    Check if an item should be excluded based on excluded terms.
+    Returns True if the item should be filtered out.
+    """
+    title_lower = item.title.lower()
+
+    for term in config.EXCLUDED_TERMS:
+        if term in title_lower:
+            return True
+
+    return False
+
+
 def calculate_distance(location_str: str) -> float:
     """
     Estimate distance from target location.
@@ -149,6 +163,17 @@ def run_pipeline():
 
         if not all_items:
             print("No items found. Exiting.")
+            return
+
+        # Step 1b: Filter out excluded items (candles, shoes, etc.)
+        print("\n[1b/6] Filtering excluded items...")
+        before_filter = len(all_items)
+        all_items = [item for item in all_items if not should_exclude_item(item)]
+        excluded_count = before_filter - len(all_items)
+        print(f"Kept {len(all_items)} items (excluded {excluded_count} non-living-room items)")
+
+        if not all_items:
+            print("No items remaining after filtering. Exiting.")
             return
 
         # Step 2: Filter out previously seen items

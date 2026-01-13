@@ -9,18 +9,55 @@ TARGET_LAT = 37.4419
 TARGET_LON = -122.1430
 MAX_DISTANCE_MILES = 20
 
-# Search settings
+# Search settings - focused on living room accent pieces
 SEARCH_TERMS = [
-    "plum pillow", "purple pillow", "violet pillow", "eggplant pillow",
-    "plum vase", "purple vase", "violet vase",
-    "plum plant pot", "purple planter", "violet pot",
-    "plum side table", "purple accent table", "plum end table",
-    "plum decor", "purple home decor", "plum accent",
-    "plum throw", "purple throw blanket",
-    "plum cushion", "purple cushion"
+    # Pillows & cushions
+    "plum throw pillow", "purple accent pillow", "violet decorative pillow",
+    "plum cushion cover", "purple velvet pillow",
+    # Throws & blankets
+    "plum throw blanket", "purple throw", "violet blanket",
+    # Vases & decor
+    "plum vase", "purple ceramic vase", "violet glass vase",
+    "plum decorative bowl", "purple accent decor",
+    # Planters
+    "plum planter", "purple plant pot", "violet ceramic pot",
+    # Accent furniture
+    "plum ottoman", "purple accent table", "plum side table",
+    # Curtains & textiles
+    "plum curtains", "purple drapes", "plum curtain panels",
 ]
 
-CATEGORIES = ["pillows", "vases", "planters", "tables", "decor", "home goods"]
+CATEGORIES = ["pillows", "throws", "vases", "planters", "ottomans", "curtains", "decor"]
+
+# Excluded terms - items to filter out
+EXCLUDED_TERMS = [
+    # Candles & fragrances
+    "candle", "candles", "wax", "scented", "fragrance", "incense", "diffuser",
+    # Footwear
+    "shoe", "shoes", "sneaker", "sneakers", "boot", "boots", "heel", "heels",
+    "sandal", "sandals", "slipper", "slippers", "footwear",
+    # Clothing & fashion
+    "dress", "shirt", "blouse", "pants", "jeans", "skirt", "jacket", "coat",
+    "sweater", "cardigan", "top", "shorts", "leggings", "romper", "jumpsuit",
+    "hoodie", "sweatshirt", "t-shirt", "tee", "polo", "blazer", "suit",
+    # Accessories
+    "purse", "handbag", "wallet", "belt", "scarf", "hat", "cap", "gloves",
+    "jewelry", "necklace", "bracelet", "earring", "ring", "watch",
+    # Beauty & personal
+    "makeup", "lipstick", "nail polish", "perfume", "lotion", "shampoo",
+    # Kids & toys
+    "toy", "toys", "stuffed animal", "plush", "doll", "action figure",
+    "baby", "infant", "toddler", "kids", "children",
+    # Electronics
+    "phone", "case", "iphone", "android", "tablet", "laptop", "computer",
+    # Food & consumables
+    "food", "candy", "chocolate", "snack", "drink", "wine", "coffee",
+    # Other non-living-room items
+    "bathroom", "kitchen", "garage", "car", "automotive", "tool",
+    "exercise", "fitness", "gym", "sports", "bike", "bicycle",
+    "book", "books", "magazine", "cd", "dvd", "vinyl", "record",
+    "pet", "dog", "cat", "fish", "bird",
+]
 
 # Color detection settings (HSV ranges for plum/purple)
 PLUM_HUE_MIN = 270
